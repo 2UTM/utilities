@@ -1,11 +1,15 @@
 #pragma once
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING // для #include <experimental/filesystem>
+
 
 
 #include <stdio.h>
 #include <string>
 #include <vector>
+//#include <filesystem> // C++17
+#include <experimental/filesystem> // для с++14 и ниже
 #include <winsock2.h>
 #include <boost/algorithm/string/replace.hpp>
 
@@ -29,3 +33,6 @@ int writeFile(std::string nameFile, char* buffer, std::string sizeFile, int seek
 
 // Циклический чтение из сокета
 int RecvAll(SOCKET sock, char* buffer, int size);
+
+// Циклическая запись в сокет
+int SendAll(SOCKET sock, char* buffer, int size);

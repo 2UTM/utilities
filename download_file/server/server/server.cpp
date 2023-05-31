@@ -1,7 +1,9 @@
 ﻿#include "server.h"
 #include <winsock2.h>
 
-std::string file = "DrvFR_5.16_886_x32.exe";
+std::string file = "utm_2_0_4.vdi";
+int BLOCK_SIZE = 1500;
+int old_BLOCK_SIZE = 0;
 
 // Инициализация сокета
 int initialization(int port)
@@ -70,7 +72,6 @@ void clientWork(int sock)
 		if (resultSelect == 0)
 		{
 			//Нет данных
-			Sleep(100);
 			continue;
 		}
 
@@ -99,7 +100,7 @@ void clientWork(int sock)
 				// Отправка файла обновления
 				long long sizeFile = 0;
 				int buffSize = 0;
-				char buffer[BLOCK_SIZE];
+				char* buffer = new char[BLOCK_SIZE];
 				if (readFile(file, 0, sizeFile, buffer, buffSize))
 				{
 					printf("Ошибка readFile\n");
@@ -110,6 +111,8 @@ void clientWork(int sock)
 					printf("Ошибка sendPacketUpdate %d \n", WSAGetLastError());
 					break;
 				}
+				delete[] buffer;
+
 				continue;
 			}
 			else
@@ -121,12 +124,29 @@ void clientWork(int sock)
 				// делим строку от клиента по точке с запятой
 				boost::split(vClient, buf, boost::is_any_of(";"));
 
-				printf("Клиенту требуется докачка файла %s, текущий размер файла у клиента %s байт\n\n", vClient[0].c_str(), vClient[1].c_str());
+				printf("Клиенту требуется докачка файла %s, текущий размер файла у клиента %s байт\n", vClient[0].c_str(), vClient[1].c_str());
 
 				// Отправка файла обновления
 				long long sizeFile = 0;
 				int buffSize = 0;
-				char buffer[BLOCK_SIZE] = { 0 };
+
+				// Выбор размера блока отправки
+				// Если клиент считал все, что отправили, увеличиваем на 1500 байт
+				// Если клиент считал меньше, не меняем
+				// Если BLOCK_SIZE после увеличения больше или равен чем 999999999, ставим 999999999
+				if (atoi(vClient[1].c_str()) - old_BLOCK_SIZE == BLOCK_SIZE)
+				{
+					BLOCK_SIZE += 1500;
+					if (BLOCK_SIZE >= 999999999)
+					{
+						BLOCK_SIZE = 999999999;
+					}
+				}
+				old_BLOCK_SIZE = atoi(vClient[1].c_str());
+
+				char* buffer = new char[BLOCK_SIZE];
+				printf("Текущий размер блока %d байт\n\n", BLOCK_SIZE);
+
 				if (readFile(file, atoi(vClient[1].c_str()), sizeFile, buffer, buffSize))
 				{
 					printf("Ошибка readFile\n");
@@ -137,6 +157,8 @@ void clientWork(int sock)
 					printf("Ошибка sendPacketUpdate %d \n", WSAGetLastError());
 					break;
 				}
+				delete[] buffer;
+
 				continue;
 			}
 		}
@@ -144,7 +166,7 @@ void clientWork(int sock)
 		{
 			
 		}
-		Sleep(100);
+		Sleep(50);
 	}
 }
 
@@ -153,7 +175,7 @@ int recvPacket(SOCKET s, std::string& message)
 {
 	// Читаем размер, первые 4 символа
 	std::vector<char> tmpSize(4);
-	if (recv(s, &tmpSize.front(), 4, 0) <= 0)
+	if (RecvAll(s, &tmpSize.front(), 4))
 	{
 		return 1;
 	}
@@ -166,7 +188,7 @@ int recvPacket(SOCKET s, std::string& message)
 		return 1;
 	}
 	std::vector<char> tmp(iSize);
-	if (recv(s, &tmp.front(), iSize, 0) <= 0)
+	if (RecvAll(s, &tmp.front(), iSize))
 	{
 		return 1;
 	}
@@ -179,21 +201,8 @@ int recvPacket(SOCKET s, std::string& message)
 // Отправка обновления
 int sendPacketUpdate(SOCKET s, char* packet, std::string nameFile, std::string sizeFile, std::string bufferSize)
 {
-	// Формируем пакет, первые 4 символа - реальный размер буффера, далее 4 символа - размер пакета, далее 256 символов - имя файла,
+	// Формируем пакет, первые 9 символов - размер пакета, далее 256 символов - имя файла,
 	// далее 12 символов - размер файла
-
-	// реальный размер буффера
-	std::string resultSizePacket = std::to_string(strlen(packet));
-	while (true)
-	{
-		if (strlen(resultSizePacket.c_str()) < 4)
-		{
-			// размер пакета
-			resultSizePacket.insert(resultSizePacket.begin(), '0');
-			continue;
-		}
-		break;
-	}
 
 	// размер файла
 	std::string resultSizeFile = sizeFile;
@@ -224,7 +233,7 @@ int sendPacketUpdate(SOCKET s, char* packet, std::string nameFile, std::string s
 	// размер пакета
 	while (true)
 	{
-		if (strlen(bufferSize.c_str()) < 4)
+		if (strlen(bufferSize.c_str()) < 9)
 		{
 			// размер пакета
 			bufferSize.insert(bufferSize.begin(), '0');
@@ -234,13 +243,12 @@ int sendPacketUpdate(SOCKET s, char* packet, std::string nameFile, std::string s
 	}
 
 	// Собираем сообщение
-	std::string resultPacket = resultSizePacket;
-	resultPacket += bufferSize;
+	std::string resultPacket = bufferSize;
 	resultPacket += resultNameFile;
 	resultPacket += resultSizeFile;
 
 	// Отправляем
-	if (send(s, resultPacket.c_str(), strlen(resultPacket.c_str()), 0) <= 0)
+	if (SendAll(s, (char*)resultPacket.c_str(), strlen(resultPacket.c_str())))
 	{
 		return 1;
 	}
@@ -275,6 +283,12 @@ int readFile(std::string nameFile, int seek, long long& sizeFile, char* buffer, 
 		// Получаем размер исходного файла
 		sizeFile = _ftelli64(fin);
 
+		// Если смещение больше, чем размер файла, делаем смещение на конец файла
+		if (seek + BLOCK_SIZE > sizeFile)
+		{
+			BLOCK_SIZE = (seek + BLOCK_SIZE) - sizeFile;
+		}
+
 		// Перемещаем указатель на смещение seek исходного файла
 		_fseeki64(fin, seek, SEEK_SET);
 
@@ -289,40 +303,6 @@ int readFile(std::string nameFile, int seek, long long& sizeFile, char* buffer, 
 		fclose(fin);
 	}
 
-	//std::string pathUpdate = "D:\\";
-
-	//// Убираем temp из имени файла
-	//boost::replace_all(nameFile, ".temp", "");
-
-	//std::ifstream file(pathUpdate + nameFile, std::ios::in | std::ios::binary);
-	//file.seekg(seek); // смещаем указатель в файле
-	//file.read(buffer, BLOCK_SIZE);
-	//if (!file)
-	//{
-	//	// Произошла ошибка
-	//	// Или достигли конца файла
-	//	// Поток перешел в состояние ошибки
-	//	 
-	//	// file.gcount() возвращает количество прочитанных байтов. 
-	//	bufferSize = file.gcount();
-
-	//	// вызов file.clear() сбросит состояние потока
-	//	// чтобы его снова можно было использовать
-	//	file.clear();
-	//}
-	//else
-	//{
-	//	// Иначе прочитали сколько хотели
-	//	bufferSize = BLOCK_SIZE;
-	//}
-
-	//if (getSizeFile(nameFile, sizeFile))
-	//{
-	//	return 1;
-	//}
-
-	//file.close();
-
 	return 0;
 }
 
@@ -335,7 +315,7 @@ int getSizeFile(std::string nameFile, long long& sizeFile)
 	// Исходный файл
 	FILE* fin;
 
-#pragma warning(suppress : 4996) // fopen deprecated
+	#pragma warning(suppress : 4996) // fopen deprecated
 	if (!(fin = fopen((exePath + nameFile).c_str(), "r")) == NULL)
 	{
 		// Перемещаем указатель на конец темпового файла
@@ -354,13 +334,29 @@ int getSizeFile(std::string nameFile, long long& sizeFile)
 	return 0;
 }
 
+// Циклическое чтение из сокета
+int RecvAll(SOCKET sock, char* buffer, int size)
+{
+	while (size > 0)
+	{
+		int RecvSize = recv(sock, buffer, size, 0);
+		if (RecvSize <= 0)
+		{
+			return 1;
+		}
+		size = size - RecvSize;
+		buffer += RecvSize;
+	}
+	return 0;
+}
+
 // Циклическая запись в сокет
 int SendAll(SOCKET sock, char* buffer, int size)
 {
 	while (size > 0)
 	{
 		int SendSize = send(sock, buffer, size, 0);
-		if (SOCKET_ERROR == SendSize)
+		if (SendSize <= 0)
 		{
 			return 1;
 		}

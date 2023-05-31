@@ -48,7 +48,7 @@ int RecvPacket(std::string& packet)
 {
     // Читаем размер, первые 4 символа
     std::vector<char> tmpSize(4);
-    if (recv(sock, &tmpSize.front(), 4, 0) <= 0)
+    if (RecvAll(sock, &tmpSize.front(), 4))
     {
         printf("Ошибка recv: %d\n", WSAGetLastError());
         return 1;
@@ -58,7 +58,7 @@ int RecvPacket(std::string& packet)
     // Читаем остальное
     int iSize = atoi(sSize.c_str());
     std::vector<char> tmp(iSize);
-    if (recv(sock, &tmp.front(), iSize, 0) <= 0)
+    if (RecvAll(sock, &tmp.front(), iSize))
     {
         printf("Ошибка recv: %d\n", WSAGetLastError());
         return 1;
@@ -72,18 +72,9 @@ int RecvPacket(std::string& packet)
 // прочитать сообщение из сокета про обновление
 int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, int& seek)
 {
-    // Читаем реальный размер буффера, первые 4 символа
-    std::vector<char> tmpSizePacket(4);
-    if (recv(sock, &tmpSizePacket.front(), 4, 0) <= 0)
-    {
-        printf("Ошибка recv: %d\n", WSAGetLastError());
-        return 1;
-    }
-    std::string sSizePacket(tmpSizePacket.begin(), tmpSizePacket.end());
-
-    // Читаем размер, далее 4 символа
-    std::vector<char> tmpSize(4);
-    if (recv(sock, &tmpSize.front(), 4, 0) <= 0)
+    // Читаем размер, первые 9 символов
+    std::vector<char> tmpSize(9);
+    if (RecvAll(sock, &tmpSize.front(), 9))
     {
         printf("Ошибка recv: %d\n", WSAGetLastError());
         return 1;
@@ -92,7 +83,7 @@ int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, int& seek)
 
     // Читаем имя файла, далее 256 символов
     std::vector<char> tmpNameFile(256);
-    if (recv(sock, &tmpNameFile.front(), 256, 0) <= 0)
+    if (RecvAll(sock, &tmpNameFile.front(), 256))
     {
         printf("Ошибка recv: %d\n", WSAGetLastError());
         return 1;
@@ -107,7 +98,7 @@ int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, int& seek)
 
     // Читаем размер файла, далее 12 символов
     std::vector<char> tmpSizeFile(12);
-    if (recv(sock, &tmpSizeFile.front(), 12, 0) <= 0)
+    if (RecvAll(sock, &tmpSizeFile.front(), 12))
     {
         printf("Ошибка recv: %d\n", WSAGetLastError());
         return 1;
@@ -152,8 +143,7 @@ int SendPacket(std::string message)
     std::string resultPacket = sizePacket;
     resultPacket += message;
 
-    int len = send(sock, resultPacket.c_str(), strlen(resultPacket.c_str()), 0);
-    if (len <= 0)
+    if (SendAll(sock, (char*)resultPacket.c_str(), strlen(resultPacket.c_str())))
     {
         printf("Ошибка send: %d\n", WSAGetLastError());
         return 1;
@@ -206,11 +196,7 @@ int doWork(int sock)
         }
         if (FD_ISSET(sock, &readfds)) // получение
         {
-            //packet.clear();
-            //if (RecvPacket(packet) == 0 || packet == "")
-            //{
-            //    continue;
-            //}
+            
         }
         if (FD_ISSET(sock, &writefds)) // отправка
         {
@@ -255,12 +241,12 @@ int doWork(int sock)
                 // Подготовка сообщения для отправки
                 // Получаем размер файла темп
                 long long sizeTempFile = 0;
-                if (getSizeFile("DrvFR_5.16_886_x32.exe.temp", sizeTempFile))
+                if (getSizeFile("utm_2_0_4.vdi.temp", sizeTempFile))
                 {
                     printf("Ошибка getSizeFile 8\n");
                     break;
                 }
-                std::string mes = "DrvFR_5.16_886_x32.exe.temp;" + std::to_string(sizeTempFile);
+                std::string mes = "utm_2_0_4.vdi.temp;" + std::to_string(sizeTempFile);
 
                 // Отправляем инфу о недокаченном файле на сервер
                 if (SendPacket(mes))
@@ -282,7 +268,7 @@ int doWork(int sock)
                 ///////////////////////////////////////////////////////////////////////
             }
         }
-        Sleep(100);
+        Sleep(50);
     }
     closesocket(sock);
     printf("Разрыв соединения\n\n");
@@ -293,34 +279,45 @@ int doWork(int sock)
 int searchTempFileUpdate()
 {
     std::string exePath = "d:\\test_download\\";
-    CreateDirectoryA(exePath.c_str(), 0);
-    exePath = exePath + "*"; // добавляем шаблон поиска
+    std::vector<std::string> files;
 
-    // Получаем список файлов
-    WIN32_FIND_DATAA FindFileData;
-    HANDLE hf;
-    hf = FindFirstFileA(exePath.c_str(), &FindFileData);
-    if (hf == INVALID_HANDLE_VALUE)
+    //////////////////////////////////////////////////////////////////////////////////////
+    // Для теста
+    std::string  extension = ".vdi";
+    std::experimental::filesystem::directory_iterator iterator2(exePath);
+    for (; iterator2 != std::experimental::filesystem::end(iterator2); iterator2++)
     {
-        return 1;
+        if (iterator2->path().extension() == extension)
+        {
+            files.push_back(iterator2->path().filename().string());
+        }
+    }
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    extension = ".temp";
+    std::experimental::filesystem::directory_iterator iterator(exePath);
+    for (; iterator != std::experimental::filesystem::end(iterator); iterator++)
+    {
+        if (iterator->path().extension() == extension)
+        {
+            files.push_back(iterator->path().filename().string());
+        }
     }
 
-    exePath = exePath.erase(exePath.size() - 1);
-    do
+    //////////////////////////////////////////////////////////////////////////////////////
+    // Для теста
+    for (std::string i : files)
     {
-        // Если это не ини и не лог файл, добавляем в результирующий вектор
-        std::string tmp(FindFileData.cFileName);
-        if (tmp.find(".temp") != std::string::npos)
-        {
-            return 2;
-        }
-        if (tmp.find("DrvFR_5.16_886_x32.exe") != std::string::npos)
+        if (i == "utm_2_0_4.vdi")
         {
             return 3;
         }
-    } while (FindNextFileA(hf, &FindFileData) != 0);
-
-    FindClose(hf);
+        if (i == "utm_2_0_4.vdi.temp")
+        {
+            return 2;
+        }
+    }
+    //////////////////////////////////////////////////////////////////////////////////////
 
     return 0;
 }
@@ -401,12 +398,28 @@ int RecvAll(SOCKET sock, char* buffer, int size)
     while (size > 0)
     {
         int RecvSize = recv(sock, buffer, size, 0);
-        if (SOCKET_ERROR == RecvSize)
+        if (RecvSize <= 0)
         {
             return 1;
         }
         size = size - RecvSize;
         buffer += RecvSize;
+    }
+    return 0;
+}
+
+// Циклическая запись в сокет
+int SendAll(SOCKET sock, char* buffer, int size)
+{
+    while (size > 0)
+    {
+        int SendSize = send(sock, buffer, size, 0);
+        if (SendSize <= 0)
+        {
+            return 1;
+        }
+        size = size - SendSize;
+        buffer += SendSize;
     }
     return 0;
 }

@@ -8,8 +8,6 @@
 #pragma comment(lib,"ws2_32.lib") //Библиотека Winsock
 
 
-#define BLOCK_SIZE 1500
-
 // Инициализация сокета
 int initialization(int port);
 
@@ -27,6 +25,9 @@ int readFile(std::string nameFile, int seek, long long& sizeFile, char* buffer, 
 
 // Проверяем размер файла недокаченного обновления
 int getSizeFile(std::string nameFile, long long& sizeFile);
+
+// Циклический чтение из сокета
+int RecvAll(SOCKET sock, char* buffer, int size);
 
 // Циклическая запись в сокет
 int SendAll(SOCKET sock, char* buffer, int size);
