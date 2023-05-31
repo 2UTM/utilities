@@ -21,7 +21,7 @@ int recvPacket(SOCKET s, std::string& message);
 int sendPacketUpdate(SOCKET s, char* packet, std::string nameFile, std::string sizeFile, std::string bufferSize);
 
 // Чтение файла
-int readFile(std::string nameFile, int seek, long long& sizeFile, char* buffer, int& bufferSize);
+int readFile(std::string nameFile, long long seek, long long& sizeFile, char* buffer, int& bufferSize);
 
 // Проверяем размер файла недокаченного обновления
 int getSizeFile(std::string nameFile, long long& sizeFile);

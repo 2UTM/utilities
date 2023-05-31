@@ -1,9 +1,9 @@
 ﻿#include "server.h"
 #include <winsock2.h>
 
-std::string file = "utm_2_0_4.vdi";
-int BLOCK_SIZE = 1500;
-int old_BLOCK_SIZE = 0;
+std::string file = "win7x64_08.11.2014_Главный_Не_удалять!!!.tib";
+long long BLOCK_SIZE = 1500;
+long long old_BLOCK_SIZE = 0;
 
 // Инициализация сокета
 int initialization(int port)
@@ -134,7 +134,7 @@ void clientWork(int sock)
 				// Если клиент считал все, что отправили, увеличиваем на 1500 байт
 				// Если клиент считал меньше, не меняем
 				// Если BLOCK_SIZE после увеличения больше или равен чем 999999999, ставим 999999999
-				if (atoi(vClient[1].c_str()) - old_BLOCK_SIZE == BLOCK_SIZE)
+				if (atoll(vClient[1].c_str()) - old_BLOCK_SIZE == BLOCK_SIZE)
 				{
 					BLOCK_SIZE += 1500;
 					if (BLOCK_SIZE >= 999999999)
@@ -142,12 +142,12 @@ void clientWork(int sock)
 						BLOCK_SIZE = 999999999;
 					}
 				}
-				old_BLOCK_SIZE = atoi(vClient[1].c_str());
+				old_BLOCK_SIZE = atoll(vClient[1].c_str());
 
 				char* buffer = new char[BLOCK_SIZE];
-				printf("Текущий размер блока %d байт\n\n", BLOCK_SIZE);
+				printf("Текущий размер блока %lld байт\n\n", BLOCK_SIZE);
 
-				if (readFile(file, atoi(vClient[1].c_str()), sizeFile, buffer, buffSize))
+				if (readFile(file, atoll(vClient[1].c_str()), sizeFile, buffer, buffSize))
 				{
 					printf("Ошибка readFile\n");
 					break;
@@ -261,7 +261,7 @@ int sendPacketUpdate(SOCKET s, char* packet, std::string nameFile, std::string s
 }
 
 // Чтение файла
-int readFile(std::string nameFile, int seek, long long& sizeFile, char* buffer, int& bufferSize)
+int readFile(std::string nameFile, long long seek, long long& sizeFile, char* buffer, int& bufferSize)
 {
 	std::string pathUpdate = "D:\\";
 
@@ -283,7 +283,7 @@ int readFile(std::string nameFile, int seek, long long& sizeFile, char* buffer, 
 		// Получаем размер исходного файла
 		sizeFile = _ftelli64(fin);
 
-		// Если смещение больше, чем размер файла, делаем смещение на конец файла
+		// Если смещение больше, чем размер файла, делаем блок до конца файла
 		if (seek + BLOCK_SIZE > sizeFile)
 		{
 			BLOCK_SIZE = (seek + BLOCK_SIZE) - sizeFile;

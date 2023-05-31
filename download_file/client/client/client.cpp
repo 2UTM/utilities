@@ -241,12 +241,12 @@ int doWork(int sock)
                 // Подготовка сообщения для отправки
                 // Получаем размер файла темп
                 long long sizeTempFile = 0;
-                if (getSizeFile("utm_2_0_4.vdi.temp", sizeTempFile))
+                if (getSizeFile("win7x64_08.11.2014_Главный_Не_удалять!!!.tib.temp", sizeTempFile))
                 {
                     printf("Ошибка getSizeFile 8\n");
                     break;
                 }
-                std::string mes = "utm_2_0_4.vdi.temp;" + std::to_string(sizeTempFile);
+                std::string mes = "win7x64_08.11.2014_Главный_Не_удалять!!!.tib.temp;" + std::to_string(sizeTempFile);
 
                 // Отправляем инфу о недокаченном файле на сервер
                 if (SendPacket(mes))
@@ -283,7 +283,7 @@ int searchTempFileUpdate()
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Для теста
-    std::string  extension = ".vdi";
+    std::string  extension = ".tib";
     std::experimental::filesystem::directory_iterator iterator2(exePath);
     for (; iterator2 != std::experimental::filesystem::end(iterator2); iterator2++)
     {
@@ -308,11 +308,11 @@ int searchTempFileUpdate()
     // Для теста
     for (std::string i : files)
     {
-        if (i == "utm_2_0_4.vdi")
+        if (i == "win7x64_08.11.2014_Главный_Не_удалять!!!.tib")
         {
             return 3;
         }
-        if (i == "utm_2_0_4.vdi.temp")
+        if (i == "win7x64_08.11.2014_Главный_Не_удалять!!!.tib.temp")
         {
             return 2;
         }
