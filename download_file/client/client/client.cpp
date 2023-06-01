@@ -70,7 +70,7 @@ int RecvPacket(std::string& packet)
 }
 
 // прочитать сообщение из сокета про обновление
-int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, int& seek)
+int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, long long& seek)
 {
     // Читаем размер, первые 9 символов
     std::vector<char> tmpSize(9);
@@ -351,7 +351,7 @@ int getSizeFile(std::string nameFile, long long& sizeFile)
 }
 
 // Запись файла
-int writeFile(std::string nameFile, char* buffer, std::string sizeFile, int seek)
+int writeFile(std::string nameFile, char* buffer, std::string sizeFile, long long seek)
 {
     std::string exePathUpdate = "d:\\test_download\\";
 

@@ -29,7 +29,7 @@ int searchTempFileUpdate();
 int getSizeFile(std::string nameFile, long long& sizeFile);
 
 // Запись файла
-int writeFile(std::string nameFile, char* buffer, std::string sizeFile, int seek);
+int writeFile(std::string nameFile, char* buffer, std::string sizeFile, long long seek);
 
 // Циклический чтение из сокета
 int RecvAll(SOCKET sock, char* buffer, int size);
