@@ -419,7 +419,7 @@ int main()
     std::cin >> port;
     printf("Введите путь до папки скачивания без пробелов (слеш в конце обязателен!): ");
     std::cin >> nameFolderUpdate;
-    printf("Введите имя файла без пробелов: ");
+    printf("Введите имя файла без пробелов (должно совпадать с файлом на сервере!): ");
     std::cin >> nameFileUpdate;
     sock = connectToServer(ip, port);
     if (sock == 1)
