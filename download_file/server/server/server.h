@@ -5,6 +5,8 @@
 #include <vector>
 #include <boost/algorithm/string.hpp>
 #include <fstream> 
+#include <iostream>
+#include <cstdlib>
 #pragma comment(lib,"ws2_32.lib") //Библиотека Winsock
 
 

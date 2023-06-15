@@ -1,9 +1,10 @@
-﻿#pragma once
-#include "client.h"
+﻿#include "client.h"
 
 int sock;
 std::string packet;
 std::string infoUpdate;
+std::string nameFolderUpdate;
+std::string nameFileUpdate;
 
 // Инициализация сокета
 int initialization()
@@ -116,10 +117,15 @@ int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, long long& se
     }
 
     // Пишем в файл
-    if (writeFile(nameFile, packet, sizeFile, seek))
+    int result = writeFile(nameFolderUpdate, nameFile, packet, sizeFile, seek);
+    if (result == 1)
     {
         printf("Ошибка writeFile %d \n", WSAGetLastError());
         return 1;
+    }
+    if (result == 2)
+    {
+        return 2;
     }
     delete[] packet;
 
@@ -201,13 +207,8 @@ int doWork(int sock)
         if (FD_ISSET(sock, &writefds)) // отправка
         {
             // Проверка на недокаченный файлы
-            int result = searchTempFileUpdate();
+            int result = searchTempFileUpdate(nameFolderUpdate);
 
-            if (result == 3)
-            {
-                printf("Скачка не требуеться!\n");
-                break;
-            }
             if (result == 0)
             {
                 ///////////////////////////////////////////////////////////////////////
@@ -221,7 +222,7 @@ int doWork(int sock)
                 }
 
                 std::string nameFile, sizeFile;
-                int seek = 0;
+                long long seek = 0;
                 packet.clear();
                 
                 if (RecvPacketUpdate(nameFile, sizeFile, seek))
@@ -241,12 +242,12 @@ int doWork(int sock)
                 // Подготовка сообщения для отправки
                 // Получаем размер файла темп
                 long long sizeTempFile = 0;
-                if (getSizeFile("win7x64_08.11.2014_Главный_Не_удалять!!!.tib.temp", sizeTempFile))
+                if (getSizeFile(nameFolderUpdate, nameFileUpdate + ".temp", sizeTempFile))
                 {
                     printf("Ошибка getSizeFile 8\n");
                     break;
                 }
-                std::string mes = "win7x64_08.11.2014_Главный_Не_удалять!!!.tib.temp;" + std::to_string(sizeTempFile);
+                std::string mes = nameFileUpdate + ";" + std::to_string(sizeTempFile);
 
                 // Отправляем инфу о недокаченном файле на сервер
                 if (SendPacket(mes))
@@ -256,11 +257,17 @@ int doWork(int sock)
                 }
 
                 std::string nameFile, sizeFile;
-                int seek = 0;
+                long long seek = 0;
                 packet.clear();
-                if (RecvPacketUpdate(nameFile, sizeFile, seek))
+                int result = RecvPacketUpdate(nameFile, sizeFile, seek);
+                if (result == 1)
                 {
                     printf("Ошибка RecvPacketUpdate %d \n", WSAGetLastError());
+                    break;
+                }
+                if (result == 2)
+                {
+                    printf("Скачивание завершено!\n");
                     break;
                 }
 
@@ -276,25 +283,11 @@ int doWork(int sock)
 }
 
 // Поиск temp файлов в обновлении
-int searchTempFileUpdate()
+int searchTempFileUpdate(std::string exePath)
 {
-    std::string exePath = "d:\\test_download\\";
     std::vector<std::string> files;
 
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Для теста
-    std::string  extension = ".tib";
-    std::experimental::filesystem::directory_iterator iterator2(exePath);
-    for (; iterator2 != std::experimental::filesystem::end(iterator2); iterator2++)
-    {
-        if (iterator2->path().extension() == extension)
-        {
-            files.push_back(iterator2->path().filename().string());
-        }
-    }
-    //////////////////////////////////////////////////////////////////////////////////////
-
-    extension = ".temp";
+    std::string extension = ".temp";
     std::experimental::filesystem::directory_iterator iterator(exePath);
     for (; iterator != std::experimental::filesystem::end(iterator); iterator++)
     {
@@ -304,37 +297,24 @@ int searchTempFileUpdate()
         }
     }
 
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Для теста
-    for (std::string i : files)
+    if (!files.empty())
     {
-        if (i == "win7x64_08.11.2014_Главный_Не_удалять!!!.tib")
-        {
-            return 3;
-        }
-        if (i == "win7x64_08.11.2014_Главный_Не_удалять!!!.tib.temp")
-        {
-            return 2;
-        }
+        return 1;
     }
-    //////////////////////////////////////////////////////////////////////////////////////
 
     return 0;
 }
 
 // Проверяем размер файла недокаченного обновления
-int getSizeFile(std::string nameFile, long long& sizeFile)
+int getSizeFile(std::string exePath, std::string nameFile, long long& sizeFile)
 {
-    
-    std::string exePath = "d:\\test_download\\";
-
     // Исходный файл
     FILE* fin;
 
     #pragma warning(suppress : 4996) // fopen deprecated
     if (!(fin = fopen((exePath + nameFile).c_str(), "r")) == NULL)
     {
-        // Перемещаем указатель на конец темпового файла
+        // Перемещаем указатель на конец исходного файла
         _fseeki64(fin, 0, SEEK_END);
 
         // Получаем размер исходного файла
@@ -351,19 +331,16 @@ int getSizeFile(std::string nameFile, long long& sizeFile)
 }
 
 // Запись файла
-int writeFile(std::string nameFile, char* buffer, std::string sizeFile, long long seek)
+int writeFile(std::string exePath, std::string nameFile, char* buffer, std::string sizeFile, long long seek)
 {
-    std::string exePathUpdate = "d:\\test_download\\";
-
     // Файл результат
     FILE* fout;
 
     // Убираем temp из имени файла
     boost::replace_all(nameFile, ".temp", "");
 
-    // Добавляем к имени файла .temp
     #pragma warning(suppress : 4996) // fopen deprecated
-    if (!(fout = fopen((exePathUpdate + nameFile + ".temp").c_str(), "ab")) == NULL)
+    if (!(fout = fopen((exePath + nameFile + ".temp").c_str(), "ab")) == NULL)
     {
         // запись по байтам seek
         fwrite(buffer, sizeof(char), seek, fout);
@@ -376,17 +353,18 @@ int writeFile(std::string nameFile, char* buffer, std::string sizeFile, long lon
 
     // Проверяем размер файла, если все скачали, переименовываем из temp
     long long sizeTempFile = 0;
-    if (getSizeFile(nameFile + ".temp", sizeTempFile))
+    if (getSizeFile(exePath, nameFile + ".temp", sizeTempFile))
     {
         return 1;
     }
     if (sizeTempFile == atoll(sizeFile.c_str()))
     {
         // переименовываем файл
-        if (MoveFileA((exePathUpdate + nameFile + ".temp").c_str(), (exePathUpdate + nameFile).c_str()) == 0)
+        if (MoveFileA((exePath + nameFile + ".temp").c_str(), (exePath + nameFile).c_str()) == 0)
         {
             return 1;
         }
+        return 2;
     }
 
     return 0;
@@ -402,7 +380,7 @@ int RecvAll(SOCKET sock, char* buffer, int size)
         {
             return 1;
         }
-        size = size - RecvSize;
+        size -= RecvSize;
         buffer += RecvSize;
     }
     return 0;
@@ -418,7 +396,7 @@ int SendAll(SOCKET sock, char* buffer, int size)
         {
             return 1;
         }
-        size = size - SendSize;
+        size -= SendSize;
         buffer += SendSize;
     }
     return 0;
@@ -433,13 +411,25 @@ int main()
         return 1;
     }
 
-    sock = connectToServer("127.0.0.1", 44444);
+    std::string ip;
+    int port;
+    printf("Введите IP адрес сервера: ");
+    std::cin >> ip;
+    printf("Введите порт сервера: ");
+    std::cin >> port;
+    printf("Введите путь до папки скачивания без пробелов (слеш в конце обязателен!): ");
+    std::cin >> nameFolderUpdate;
+    printf("Введите имя файла без пробелов: ");
+    std::cin >> nameFileUpdate;
+    sock = connectToServer(ip, port);
     if (sock == 1)
     {
         return 1;
     }
 
     doWork(sock);
+
+    system("pause");
 
     return 0;
 }

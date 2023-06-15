@@ -1,7 +1,8 @@
 ﻿#include "server.h"
-#include <winsock2.h>
 
-std::string file = "win7x64_08.11.2014_Главный_Не_удалять!!!.tib";
+std::string file;
+std::string pathUpdate;
+std::string exePath;
 long long BLOCK_SIZE = 1500;
 long long old_BLOCK_SIZE = 0;
 
@@ -137,9 +138,9 @@ void clientWork(int sock)
 				if (atoll(vClient[1].c_str()) - old_BLOCK_SIZE == BLOCK_SIZE)
 				{
 					BLOCK_SIZE += 1500;
-					if (BLOCK_SIZE >= 999999999)
+					if (BLOCK_SIZE >= 2000000)
 					{
-						BLOCK_SIZE = 999999999;
+						BLOCK_SIZE = 2000000;
 					}
 				}
 				old_BLOCK_SIZE = atoll(vClient[1].c_str());
@@ -263,8 +264,6 @@ int sendPacketUpdate(SOCKET s, char* packet, std::string nameFile, std::string s
 // Чтение файла
 int readFile(std::string nameFile, long long seek, long long& sizeFile, char* buffer, int& bufferSize)
 {
-	std::string pathUpdate = "D:\\";
-
 	// Убираем temp из имени файла
 	boost::replace_all(nameFile, ".temp", "");
 
@@ -306,12 +305,9 @@ int readFile(std::string nameFile, long long seek, long long& sizeFile, char* bu
 	return 0;
 }
 
-// Проверяем размер файла недокаченного обновления
+// Проверяем размер файла обновления
 int getSizeFile(std::string nameFile, long long& sizeFile)
 {
-
-	std::string exePath = "d:\\";
-
 	// Исходный файл
 	FILE* fin;
 
@@ -344,7 +340,7 @@ int RecvAll(SOCKET sock, char* buffer, int size)
 		{
 			return 1;
 		}
-		size = size - RecvSize;
+		size -= RecvSize;
 		buffer += RecvSize;
 	}
 	return 0;
@@ -360,7 +356,7 @@ int SendAll(SOCKET sock, char* buffer, int size)
 		{
 			return 1;
 		}
-		size = size - SendSize;
+		size -= SendSize;
 		buffer += SendSize;
 	}
 	return 0;
@@ -370,12 +366,22 @@ int main()
 {
 	setlocale(LC_ALL, "ru-RU");
 
-	printf("Сервер запущен\n");
+	printf("Введите порт сервера: ");
+	int port;
+	std::cin >> port;
+    int sock = initialization(port);
 
-    int sock = initialization(44444);
+	printf("Введите путь до папки с файлом без пробелов: ");
+	std::cin >> exePath;
+	pathUpdate = exePath;
+
+	printf("Введите имя файла без пробелов: ");
+	std::cin >> file;
 
     struct sockaddr_in addr;
     int len = sizeof(addr);
+
+	printf("Сервер запущен\n");
 
     int client = accept(sock, (struct sockaddr*)&addr, &len);
     if (client < 0)
@@ -387,6 +393,8 @@ int main()
     
     // подключение
     clientWork(client);
+
+	system("pause");
 
     return 0;
 }

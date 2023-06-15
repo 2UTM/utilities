@@ -12,24 +12,26 @@
 #include <experimental/filesystem> // для с++14 и ниже
 #include <winsock2.h>
 #include <boost/algorithm/string/replace.hpp>
+#include <iostream>
+#include <cstdio>
 
 #pragma comment(lib,"ws2_32.lib") //Библиотека Winsock
 
 int initialization(); // инициалзация сокета
 int connectToServer(std::string ip, int port); // подключение к серверу
 int RecvPacket(std::string& packet); // прочитать сообщение из сокета
-int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, int& seek); // прочитать сообщение из сокета про обновление
+int RecvPacketUpdate(std::string& nameFile, std::string& sizeFile, long long& seek); // прочитать сообщение из сокета про обновление
 int SendPacket(std::string message); // отправить сообщение в сокет
 int doWork(int sock); // работа соединения
 
 // Поиск temp файлов в обновлении
-int searchTempFileUpdate();
+int searchTempFileUpdate(std::string exePath);
 
 // Проверяем размер файла недокаченного обновления
-int getSizeFile(std::string nameFile, long long& sizeFile);
+int getSizeFile(std::string exePath, std::string nameFile, long long& sizeFile);
 
 // Запись файла
-int writeFile(std::string nameFile, char* buffer, std::string sizeFile, long long seek);
+int writeFile(std::string exePath, std::string nameFile, char* buffer, std::string sizeFile, long long seek);
 
 // Циклический чтение из сокета
 int RecvAll(SOCKET sock, char* buffer, int size);

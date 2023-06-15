@@ -1,5 +1,7 @@
 ﻿#include "stdio.h"
 #include <locale.h>
+#include "windows.h">
+#include <iostream>
 
 #define BLOCK_SIZE 9000
 
@@ -13,29 +15,46 @@ int main()
     // Файл записи
     FILE* fout;
 
+    char SrcFileName[MAX_PATH];
+    char DstFileName[MAX_PATH];
+    printf("Введите путь до исходного файла без пробелов: ");
+    #pragma warning(suppress : 4996) // scanf deprecated
+    scanf("%s", &SrcFileName);
+    printf("Введите путь до файла назначения без пробелов: ");
+    #pragma warning(suppress : 4996) // scanf deprecated
+    scanf("%s", &DstFileName);
+
     char buffer[BLOCK_SIZE];
     int readed = 0;
     int seek = 0;
 
     printf("Начали копирование\n\n");
 
-    for (;;)
+    while (true)
     {
         #pragma warning(suppress : 4996) // fopen deprecated
-        if (!(fin = fopen("D:\\DrvFR_5.16_886_x32.exe", "rb")) == NULL)
+        if (!(fin = fopen(SrcFileName, "rb")) == NULL)
         {
             _fseeki64(fin, seek, SEEK_SET);
 
             readed = fread(buffer, sizeof(char), BLOCK_SIZE, fin);
+            if (readed == 0)
+            {
+                break;
+            }
             printf("Считали %d байт\n", readed);
 
             fclose(fin);
         }
 
         #pragma warning(suppress : 4996) // fopen deprecated
-        if (!(fout = fopen("D:\\test_download\\DrvFR_5.16_886_x32.exe", "ab")) == NULL)
+        if (!(fout = fopen(DstFileName, "ab")) == NULL)
         {
             int writed = fwrite(buffer, sizeof(char), readed, fout);
+            if (writed == 0)
+            {
+                break;
+            }
             printf("Записали %d байт\n", writed);
 
             fclose(fout);
@@ -45,6 +64,7 @@ int main()
     }
 
     printf("Закончили копирование\n\n");
+    getchar();
 
     return 0;
 }
