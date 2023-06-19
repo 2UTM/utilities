@@ -371,7 +371,7 @@ int main()
 	std::cin >> port;
     int sock = initialization(port);
 
-	printf("Введите путь до папки с файлом без пробелов: ");
+	printf("Введите путь до папки с файлом без пробелов (слеш в конце обязателен!): ");
 	std::cin >> exePath;
 	pathUpdate = exePath;
 
